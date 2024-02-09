@@ -1,0 +1,39 @@
+# Copyright (C) 2021, 2023 Mitsubishi Electric Research Laboratories (MERL)
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+from tf2rl.algos.sac import SAC
+from tf2rl.experiments.trainer import Trainer
+
+from examples.config import get_config
+from safety_rl.envs.engine_wrapper import EngineWrapper
+
+if __name__ == "__main__":
+    parser = Trainer.get_argument()
+    parser = SAC.get_argument(parser)
+    parser.set_defaults(batch_size=100)
+    parser.set_defaults(n_warmup=10000)
+    parser.set_defaults(episode_max_steps=200)
+    args = parser.parse_args()
+
+    config, _ = get_config(robot_type="point", field_size=2.0)
+    env = EngineWrapper(config)
+    env.reset()
+    test_env = EngineWrapper(config)
+
+    policy = SAC(
+        state_shape=env.observation_space.shape,
+        action_dim=env.action_space.high.size,
+        gpu=args.gpu,
+        memory_capacity=args.memory_capacity,
+        max_action=env.action_space.high[0],
+        batch_size=args.batch_size,
+        n_warmup=args.n_warmup,
+        alpha=args.alpha,
+        auto_alpha=args.auto_alpha,
+    )
+    trainer = Trainer(policy, env, args, test_env=test_env)
+    if args.evaluate:
+        trainer.evaluate_policy(0)
+    else:
+        trainer()
